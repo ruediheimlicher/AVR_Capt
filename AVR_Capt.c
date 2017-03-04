@@ -86,7 +86,9 @@ volatile uint8_t captured;
 volatile uint8_t overflow=0;
 volatile uint8_t captcounter=0;
 volatile uint16_t mittelwertA[4];
-volatile uint8_t mpos=0;
+volatile uint16_t mittelwertB[4];
+volatile uint8_t mposA=0;
+volatile uint8_t mposB=0;
 volatile uint8_t adckanal=0;
 
 // end ACD
@@ -152,6 +154,9 @@ ISR(TIMER1_CAPT_vect)
       
       if (adckanal == COMP_ADC_PIN_A)
       {
+         mittelwertB[mposB++] = ICR1;
+         mposB &= 0x03;      //TIFR |= (1<<ICF1);
+
       COMP_PORT &= ~(1<<COMP_DRIVE_PIN_A);
       
       }
@@ -159,8 +164,8 @@ ISR(TIMER1_CAPT_vect)
       if (adckanal == COMP_ADC_PIN_B)
       {
          // Ringbuffer fuer gleitenden Mittelwert
-         mittelwertA[mpos++] = ICR1;
-         mpos &= 0x03;      //TIFR |= (1<<ICF1);
+         mittelwertA[mposA++] = ICR1;
+         mposA &= 0x03;      //TIFR |= (1<<ICF1);
 
          COMP_PORT &= ~(1<<COMP_DRIVE_PIN_B);
       }
@@ -248,19 +253,19 @@ int main (void)
                
                if (MULTIPLEX)
                {
-                  // Werte reset
- 
                   
-                  
-                 // if (adckanal == COMP_ADC_PIN_A)
-                     
-                     
-                  {
+                   {
+                      // Werte reset
+                     captured_value=0;
                      captured = 0;
+                      // Kanal waehlen
                      adckanal = COMP_ADC_PIN_A;
                      ADMUX = COMP_ADC_PIN_A; // 4
+                     // counter reset
+                     TCNT1 = 0;
+                     // Pin HI
                      COMP_PORT |= (1<<COMP_DRIVE_PIN_A);
-                     //while (!captured);
+                     while (!captured); // warten, captured wird in ISR gesetzt
                   
                   }
 
@@ -292,6 +297,11 @@ int main (void)
                
                lcd_gotoxy(6,0);
                lcd_putint16(floatmittel(mittelwertA));
+
+               lcd_gotoxy(6,1);
+               lcd_putint16(floatmittel(mittelwertB));
+
+               
                //lcd_putint16((captured_value-11000)/2);
                //captured_value=0;
                lcd_gotoxy(16,0);
