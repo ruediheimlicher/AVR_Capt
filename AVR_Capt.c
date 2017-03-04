@@ -62,7 +62,11 @@ void delay_ms(unsigned int ms)
 // ACD https://www.avrprogrammers.com/howto/attiny-comparator
 #define DRIVE_PORT PORTB
 #define DRIVE_PORT_DDR DDRB
-#define DRIVE_PIN_MSK 0x04
+//#define DRIVE_PIN_MSK 0x04
+#define COMP_PORT PORTB
+#define COMP_DDR DDRB
+#define DRIVE_PORT PORTB
+#define COMP_PIN_B   2
 
 #define MULTIPLEX 1
 
@@ -78,8 +82,8 @@ volatile uint8_t mpos=0;
 void timer1_comp(void)
 {
    // Set pin for driving resistor low.
-   DRIVE_PORT_DDR |= DRIVE_PIN_MSK;
-   DRIVE_PORT &= ~DRIVE_PIN_MSK;
+   DRIVE_PORT_DDR |= (1<<COMP_PIN_B);
+   DRIVE_PORT &= ~(1<<COMP_PIN_B);
    
    // Disable the digital input buffers.
    //   DIDR = (1<<AIN1D) | (1<<AIN0D);
@@ -126,7 +130,7 @@ ISR(TIMER1_CAPT_vect)
       mpos &= 0x03;      //TIFR |= (1<<ICF1);
       captcounter++;
    
-      DRIVE_PORT &= ~DRIVE_PIN_MSK;
+      DRIVE_PORT &= ~(1<<COMP_PIN_B);
       TCNT1 = 0;
       captured = 1;
       }
