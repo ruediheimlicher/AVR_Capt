@@ -149,36 +149,32 @@ ISR(TIMER1_CAPT_vect)
    if (captured == 0)
    {
       // captured_value = ICR1;
-      
       captcounter++;
       
       if (adckanal == COMP_ADC_PIN_A)
       {
-         mittelwertB[mposB++] = ICR1;
-         mposB &= 0x03;      //TIFR |= (1<<ICF1);
-
-      COMP_PORT &= ~(1<<COMP_DRIVE_PIN_A);
-      
+         mittelwertA[mposA++] = ICR1;           // Ringbuffer fuer gleitenden Mittelwert
+         mposA &= 0x03;                         // position incrementieren
+         COMP_PORT &= ~(1<<COMP_DRIVE_PIN_A);   // auf 4 beschraenken
       }
       
       if (adckanal == COMP_ADC_PIN_B)
       {
-         // Ringbuffer fuer gleitenden Mittelwert
-         mittelwertA[mposA++] = ICR1;
-         mposA &= 0x03;      //TIFR |= (1<<ICF1);
-
+         mittelwertB[mposB++] = ICR1;
+         mposB &= 0x03;
          COMP_PORT &= ~(1<<COMP_DRIVE_PIN_B);
       }
       TCNT1 = 0;
       captured = 1;
-      }
+   }
    //TCNT1 = 0;
 }
 
 ISR(TIMER1_OVF_vect)
 {
    overflow++;
-   //COMP_PORT &= ~DRIVE_PIN_MSK;
+   COMP_PORT &= ~(1<<COMP_DRIVE_PIN_A);
+   COMP_PORT &= ~(1<<COMP_DRIVE_PIN_B);
    // If we overflowed, the capacitor is bigger than
    // this range supports. Use a smaller series resistor.
 }
@@ -187,13 +183,11 @@ ISR(TIMER1_OVF_vect)
 
 void slaveinit(void)
 {
-
 	//LCD
 	LCD_DDR |= (1<<LCD_RSDS_PIN);	//Pin 5 von PORT B als Ausgang fuer LCD
  	LCD_DDR |= (1<<LCD_ENABLE_PIN);	//Pin 6 von PORT B als Ausgang fuer LCD
 	LCD_DDR |= (1<<LCD_CLOCK_PIN);	//Pin 7 von PORT B als Ausgang fuer LCD
    LOOPLED_DDR |= (1<<LOOPLED_PIN);
-
 }
 
 uint16_t floatmittel(uint16_t* werte)
@@ -204,19 +198,11 @@ uint16_t floatmittel(uint16_t* werte)
    {
       mittel += werte[pos]/4;
    }
-   
    return mittel;
 }
 
 int main (void)
 {
-	/* INITIALIZE */
-//	LCD_DDR |=(1<<LCD_RSDS_PIN);
-//	LCD_DDR |=(1<<LCD_ENABLE_PIN);
-//	LCD_DDR |=(1<<LCD_CLOCK_PIN);
-	
-	
-	
 	slaveinit();
 	
 	lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
@@ -228,7 +214,8 @@ int main (void)
 	delay_ms(1000);
    lcd_gotoxy(0,0);
    lcd_puts("     ");
-	uint8_t i=0;
+   
+   // timer 1 einrichten
    timer1_comp();
    sei();
 
@@ -253,39 +240,31 @@ int main (void)
                
                if (MULTIPLEX)
                {
+                  // Werte reset
+                  captured_value=0;
+                  captured = 0;
+                  // Kanal waehlen
+                  adckanal = COMP_ADC_PIN_A;
+                  ADMUX = COMP_ADC_PIN_A; // 4
+                  // counter reset
+                  TCNT1 = 0;
+                  // Pin HI
+                  COMP_PORT |= (1<<COMP_DRIVE_PIN_A);
+                  while (!captured); // warten, captured wird in ISR gesetzt
                   
-                   {
-                      // Werte reset
-                     captured_value=0;
-                     captured = 0;
-                      // Kanal waehlen
-                     adckanal = COMP_ADC_PIN_A;
-                     ADMUX = COMP_ADC_PIN_A; // 4
-                     // counter reset
-                     TCNT1 = 0;
-                     // Pin HI
-                     COMP_PORT |= (1<<COMP_DRIVE_PIN_A);
-                     while (!captured); // warten, captured wird in ISR gesetzt
+                  _delay_us(100);
                   
-                  }
-
-                 // if (adckanal == COMP_ADC_PIN_B)
-                     
-                  delay_ms(2);
-                  {
-                     captured_value=0;
-                     captured = 0;
-                     adckanal = COMP_ADC_PIN_B;
-
-                     ADMUX = COMP_ADC_PIN_B; // 5
-                     TCNT1 = 0;
-                     COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
-                     while (!captured);
-                  }
+                  captured_value=0;
+                  captured = 0;
+                  adckanal = COMP_ADC_PIN_B;
                   
+                  ADMUX = COMP_ADC_PIN_B; // 5
+                  TCNT1 = 0;
+                  COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
+                  while (!captured);
                }
-               lcd_gotoxy(0,0);
-               lcd_putint(overflow);
+               //lcd_gotoxy(0,0);
+               //lcd_putint(overflow);
 //               captured_value=0;
                
                
@@ -295,15 +274,14 @@ int main (void)
                
                
                
-               lcd_gotoxy(6,0);
+               lcd_gotoxy(0,0);
+               lcd_puts("chA:");
                lcd_putint16(floatmittel(mittelwertA));
 
-               lcd_gotoxy(6,1);
+               lcd_gotoxy(0,1);
+               lcd_puts("chB:");
                lcd_putint16(floatmittel(mittelwertB));
 
-               
-               //lcd_putint16((captured_value-11000)/2);
-               //captured_value=0;
                lcd_gotoxy(16,0);
                lcd_putint(captcounter);
 
