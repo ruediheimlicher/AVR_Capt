@@ -219,7 +219,7 @@ int main (void)
                captured = 0;
                
                TCNT1 = 0;
-               PORTB |= DRIVE_PIN_MSK;
+               COMP_PORT |= (1<<COMP_PIN_B);
                // while (!captured);
                lcd_gotoxy(6,0);
                lcd_putint16(floatmittel(mittelwert));
