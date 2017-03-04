@@ -85,8 +85,9 @@ volatile uint16_t captured_value;
 volatile uint8_t captured;
 volatile uint8_t overflow=0;
 volatile uint8_t captcounter=0;
-volatile uint16_t mittelwert[4];
+volatile uint16_t mittelwertA[4];
 volatile uint8_t mpos=0;
+volatile uint8_t adckanal=0;
 
 // end ACD
 
@@ -103,6 +104,9 @@ void timer1_comp(void)
    if (MULTIPLEX)
    {
       // ADC-Eingaenge fuer Capt
+      COMP_ADC_DDR &= ~(1<<COMP_ADC_PIN_A);
+      COMP_ADC_PORT &= ~(1<<COMP_ADC_PIN_A);
+
       COMP_ADC_DDR &= ~(1<<COMP_ADC_PIN_B);
       COMP_ADC_PORT &= ~(1<<COMP_ADC_PIN_B);
       
@@ -144,12 +148,22 @@ ISR(TIMER1_CAPT_vect)
    {
       // captured_value = ICR1;
       
-      // Ringbuffer fuer gleitenden Mittelwert
-      mittelwert[mpos++] = ICR1;
-      mpos &= 0x03;      //TIFR |= (1<<ICF1);
       captcounter++;
-   
-      COMP_PORT &= ~(1<<COMP_DRIVE_PIN_B);
+      
+      if (adckanal == COMP_ADC_PIN_A)
+      {
+      COMP_PORT &= ~(1<<COMP_DRIVE_PIN_A);
+      
+      }
+      
+      if (adckanal == COMP_ADC_PIN_B)
+      {
+         // Ringbuffer fuer gleitenden Mittelwert
+         mittelwertA[mpos++] = ICR1;
+         mpos &= 0x03;      //TIFR |= (1<<ICF1);
+
+         COMP_PORT &= ~(1<<COMP_DRIVE_PIN_B);
+      }
       TCNT1 = 0;
       captured = 1;
       }
@@ -230,20 +244,54 @@ int main (void)
 			{
             
 				{
+               
+               
                if (MULTIPLEX)
                {
-                  ADMUX = COMP_ADC_PIN_B;//(1<<MUX2) | (1<<MUX0); // 5
+                  // Werte reset
+ 
+                  
+                  
+                 // if (adckanal == COMP_ADC_PIN_A)
+                     
+                     
+                  {
+                     captured = 0;
+                     adckanal = COMP_ADC_PIN_A;
+                     ADMUX = COMP_ADC_PIN_A; // 4
+                     COMP_PORT |= (1<<COMP_DRIVE_PIN_A);
+                     //while (!captured);
+                  
+                  }
+
+                 // if (adckanal == COMP_ADC_PIN_B)
+                     
+                  delay_ms(2);
+                  {
+                     captured_value=0;
+                     captured = 0;
+                     adckanal = COMP_ADC_PIN_B;
+
+                     ADMUX = COMP_ADC_PIN_B; // 5
+                     TCNT1 = 0;
+                     COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
+                     while (!captured);
+                  }
+                  
                }
                lcd_gotoxy(0,0);
                lcd_putint(overflow);
-               captured_value=0;
-               captured = 0;
+//               captured_value=0;
                
-               TCNT1 = 0;
-               COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
-               // while (!captured);
+               
+               //TCNT1 = 0;
+               
+//               COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
+               
+               
+               
                lcd_gotoxy(6,0);
-               lcd_putint16(floatmittel(mittelwert));
+               lcd_putint16(floatmittel(mittelwertA));
                //lcd_putint16((captured_value-11000)/2);
                //captured_value=0;
                lcd_gotoxy(16,0);
