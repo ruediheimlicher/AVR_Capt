@@ -25,13 +25,14 @@ uint16_t loopCount0=0;
 uint16_t loopCount1=0;
 uint16_t loopCount2=0;
 
+/*
 #define TWI_PORT		PORTC
 #define TWI_PIN		PINC
 #define TWI_DDR		DDRC
 
 #define SDAPIN		4
 #define SCLPIN		5
-
+*/
 
 
 volatile uint8_t					Programmstatus=0x00;
@@ -63,6 +64,8 @@ void delay_ms(unsigned int ms)
 #define DRIVE_PORT_DDR DDRB
 #define DRIVE_PIN_MSK 0x04
 
+#define MULTIPLEX 1
+
 volatile uint16_t captured_value;
 volatile uint8_t captured;
 volatile uint8_t overflow=0;
@@ -72,7 +75,7 @@ volatile uint8_t mpos=0;
 
 // end ACD
 
-void timer1_comp()
+void timer1_comp(void)
 {
    // Set pin for driving resistor low.
    DRIVE_PORT_DDR |= DRIVE_PIN_MSK;
@@ -80,19 +83,30 @@ void timer1_comp()
    
    // Disable the digital input buffers.
    //   DIDR = (1<<AIN1D) | (1<<AIN0D);
+   if (MULTIPLEX)
+   {
+      DDRC &= ~(1<<3);
+      PORTC &= ~(1<<3);
+
+      SFIOR |= (1<<ACME);
+      //ADMUX = 3;
+   }
    
-   SFIOR |= (1<<ACME);
-   ADCSRA &= ~(1<<ADEN);
+
+   //ADCSRA =0;//| = (1<<ADEN);
    
    
    // Comparator enabled, no bandgap, input capture.
    ACSR =    (0<<ACIE) | (1<<ACIC) | (1<<ACIS1) | (1<<ACIS0);
    
+   
+   
    // Timer...
    TCCR1A = 0;
    
    // Input capture on rising edge, sysclk/1.
-   TCCR1B =  (1<<ICES1) | (1<<CS10);
+//   TCCR1B =  (1<<ICES1) | (1<<CS10);
+ TCCR1B =   (1<<CS10);
    
    TCNT1 = 0;
    
@@ -106,6 +120,8 @@ ISR(TIMER1_CAPT_vect)
    if (captured == 0)
    {
       // captured_value = ICR1;
+      
+      // Ringbuffer fuer gleitenden Mittelwert
       mittelwert[mpos++] = ICR1;
       mpos &= 0x03;      //TIFR |= (1<<ICF1);
       captcounter++;
@@ -146,9 +162,9 @@ uint16_t floatmittel(uint16_t* werte)
    uint16_t mittel =0;
    while (pos--)
    {
-      mittel += werte[pos];
+      mittel += werte[pos]/4;
    }
-   mittel /= 4;
+   
    return mittel;
 }
 
@@ -182,10 +198,7 @@ int main (void)
 		
 		loopCount0 ++;
 		//_delay_ms(2);
-      if(ACSR & 0x20)
-      {
-         captcounter;
-      }
+      
 		if (loopCount0 >=0x0AFF)
 		{
 			
@@ -196,8 +209,10 @@ int main (void)
 			{
             
 				{
-               
-               ADMUX |= (1<<MUX2) | (1<<MUX0);
+               if (MULTIPLEX)
+               {
+                  ADMUX = 3;//(1<<MUX2) | (1<<MUX0); // 5
+               }
                lcd_gotoxy(0,0);
                lcd_putint(overflow);
                captured_value=0;
@@ -205,7 +220,7 @@ int main (void)
                
                TCNT1 = 0;
                PORTB |= DRIVE_PIN_MSK;
-                while (!captured);
+               // while (!captured);
                lcd_gotoxy(6,0);
                lcd_putint16(floatmittel(mittelwert));
                //lcd_putint16((captured_value-11000)/2);
