@@ -60,9 +60,21 @@ void delay_ms(unsigned int ms)
 }
 
 // ACD https://www.avrprogrammers.com/howto/attiny-comparator
-#define DRIVE_PORT PORTB
-#define DRIVE_PORT_DDR DDRB
-#define DRIVE_PIN_MSK 0x04
+#define COMP_PORT PORTB
+#define COMP_DDR DDRB
+
+// Pins fuer Drive der RC
+#define COMP_DRIVE_PIN_A  1
+#define COMP_DRIVE_PIN_B  2
+
+#define COMP_ADC_PORT PORTC
+#define COMP_ADC_DDR DDRC
+
+#define COMP_AIN_PORT   PORTD
+#define COMP_AIN_DDR   DDRD
+#define COMP_AIN0       6
+#define COMP_AIN1       7
+
 
 #define MULTIPLEX 1
 
@@ -78,21 +90,29 @@ volatile uint8_t mpos=0;
 void timer1_comp(void)
 {
    // Set pin for driving resistor low.
-   DRIVE_PORT_DDR |= DRIVE_PIN_MSK;
-   DRIVE_PORT &= ~DRIVE_PIN_MSK;
+   COMP_DDR |= (1<<COMP_DRIVE_PIN_A);
+   COMP_PORT &= ~(1<<COMP_DRIVE_PIN_A);
+   COMP_DDR |= (1<<COMP_DRIVE_PIN_B);
+   COMP_PORT &= ~(1<<COMP_DRIVE_PIN_B);
    
    // Disable the digital input buffers.
    //   DIDR = (1<<AIN1D) | (1<<AIN0D);
    if (MULTIPLEX)
    {
-      DDRC &= ~(1<<3);
-      PORTC &= ~(1<<3);
-
+      // ADC-Eingaenge fuer Capt
+      COMP_ADC_DDR &= ~(1<<3);
+      COMP_ADC_PORT &= ~(1<<3);
+      
+      // AIN0, AIN1 Eingang
+      COMP_AIN_DDR &= ~(1<<COMP_AIN0);
+      COMP_AIN_DDR &= ~(1<<COMP_AIN1);
+      
+      
       SFIOR |= (1<<ACME);
       //ADMUX = 3;
    }
    
-
+   
    //ADCSRA =0;//| = (1<<ADEN);
    
    
@@ -105,14 +125,14 @@ void timer1_comp(void)
    TCCR1A = 0;
    
    // Input capture on rising edge, sysclk/1.
-//   TCCR1B =  (1<<ICES1) | (1<<CS10);
- TCCR1B =   (1<<CS10);
+   //   TCCR1B =  (1<<ICES1) | (1<<CS10);
+   TCCR1B =   (1<<CS10);
    
    TCNT1 = 0;
    
    // Timer interrupts on capture and overflow.
    TIMSK |= (1<<TOIE1) | (1<<TICIE1);
-   }
+}
 
 ISR(TIMER1_CAPT_vect)
 {
@@ -126,7 +146,7 @@ ISR(TIMER1_CAPT_vect)
       mpos &= 0x03;      //TIFR |= (1<<ICF1);
       captcounter++;
    
-      DRIVE_PORT &= ~DRIVE_PIN_MSK;
+      COMP_PORT &= ~(1<<COMP_DRIVE_PIN_B);
       TCNT1 = 0;
       captured = 1;
       }
@@ -136,7 +156,7 @@ ISR(TIMER1_CAPT_vect)
 ISR(TIMER1_OVF_vect)
 {
    overflow++;
-   //DRIVE_PORT &= ~DRIVE_PIN_MSK;
+   //COMP_PORT &= ~DRIVE_PIN_MSK;
    // If we overflowed, the capacitor is bigger than
    // this range supports. Use a smaller series resistor.
 }
@@ -152,8 +172,6 @@ void slaveinit(void)
 	LCD_DDR |= (1<<LCD_CLOCK_PIN);	//Pin 7 von PORT B als Ausgang fuer LCD
    LOOPLED_DDR |= (1<<LOOPLED_PIN);
 
-   DDRD &= ~(1<<6);
-   DDRD &= ~(1<<7);
 }
 
 uint16_t floatmittel(uint16_t* werte)
@@ -219,7 +237,7 @@ int main (void)
                captured = 0;
                
                TCNT1 = 0;
-               PORTB |= DRIVE_PIN_MSK;
+               COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
                // while (!captured);
                lcd_gotoxy(6,0);
                lcd_putint16(floatmittel(mittelwert));
