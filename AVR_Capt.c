@@ -267,13 +267,6 @@ int main (void)
                //lcd_putint(overflow);
 //               captured_value=0;
                
-               
-               //TCNT1 = 0;
-               
-//               COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
-               
-               
-               
                lcd_gotoxy(0,0);
                lcd_puts("chA:");
                lcd_putint16(floatmittel(mittelwertA));
