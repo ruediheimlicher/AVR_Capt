@@ -70,8 +70,11 @@ void delay_ms(unsigned int ms)
 #define COMP_ADC_PORT PORTC
 #define COMP_ADC_DDR DDRC
 
+#define COMP_ADC_PIN_A  4
+#define COMP_ADC_PIN_B  5
+
 #define COMP_AIN_PORT   PORTD
-#define COMP_AIN_DDR   DDRD
+#define COMP_AIN_DDR    DDRD
 #define COMP_AIN0       6
 #define COMP_AIN1       7
 
@@ -100,8 +103,8 @@ void timer1_comp(void)
    if (MULTIPLEX)
    {
       // ADC-Eingaenge fuer Capt
-      COMP_ADC_DDR &= ~(1<<3);
-      COMP_ADC_PORT &= ~(1<<3);
+      COMP_ADC_DDR &= ~(1<<COMP_ADC_PIN_B);
+      COMP_ADC_PORT &= ~(1<<COMP_ADC_PIN_B);
       
       // AIN0, AIN1 Eingang
       COMP_AIN_DDR &= ~(1<<COMP_AIN0);
@@ -229,7 +232,7 @@ int main (void)
 				{
                if (MULTIPLEX)
                {
-                  ADMUX = 3;//(1<<MUX2) | (1<<MUX0); // 5
+                  ADMUX = COMP_ADC_PIN_B;//(1<<MUX2) | (1<<MUX0); // 5
                }
                lcd_gotoxy(0,0);
                lcd_putint(overflow);
