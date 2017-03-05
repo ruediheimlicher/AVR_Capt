@@ -108,7 +108,7 @@ void timer1_comp(void)
       // ADC-Eingaenge fuer Capt
       COMP_ADC_DDR &= ~(1<<COMP_ADC_PIN_A);
       COMP_ADC_PORT &= ~(1<<COMP_ADC_PIN_A);
-
+      
       COMP_ADC_DDR &= ~(1<<COMP_ADC_PIN_B);
       COMP_ADC_PORT &= ~(1<<COMP_ADC_PIN_B);
       
@@ -122,25 +122,22 @@ void timer1_comp(void)
    }
    
    
-   //ADCSRA =0;//| = (1<<ADEN);
+   //ADCSRA =0;//| = (1<<ADEN);                    // disable ADC if necessary
+   ACSR =   (1<<ACIC) | (1<<ACIS1) | (1<<ACIS0);   // Comparator enabled, no bandgap, input capture.
    
-   
-   // Comparator enabled, no bandgap, input capture.
-   ACSR =    (0<<ACIE) | (1<<ACIC) | (1<<ACIS1) | (1<<ACIS0);
    
    
    
    // Timer...
    TCCR1A = 0;
    
-   // Input capture on rising edge, sysclk/1.
-   //   TCCR1B =  (1<<ICES1) | (1<<CS10);
-   TCCR1B =   (1<<CS10);
+   TCCR1B =   (1<<CS10);                        // F_CPU / 1
+   //TCCR1B =  (1<<ICES1);                      // Input capture on rising edge
    
    TCNT1 = 0;
    
-   // Timer interrupts on capture and overflow.
-   TIMSK |= (1<<TOIE1) | (1<<TICIE1);
+   
+   TIMSK |= (1<<TOIE1) | (1<<TICIE1);           // Timer interrupts on capture and overflow.
 }
 
 ISR(TIMER1_CAPT_vect)
@@ -179,6 +176,12 @@ ISR(TIMER1_OVF_vect)
    // this range supports. Use a smaller series resistor.
 }
 
+void switchChannel (uint8_t channel) // https://github.com/Teknoman117/avr/blob/master/unsorted/mxx4lib/acomp.h
+{ //switched the negative input pin of the Analog comparator in multiplexer mode
+   ADMUX = channel & 0x07;     //set the multiplexer channel and mask unused buts
+   __asm ("NOP");              //wait 2 clock cycles
+   __asm ("NOP");
+}
 
 
 void slaveinit(void)
@@ -227,67 +230,64 @@ int main (void)
 		//_delay_ms(2);
       
 		if (loopCount0 >=0x0AFF)
-		{
-			
-			//LOOPLED_PORT ^= (1<<LOOPLED_PIN);
-			loopCount1++;
-			
-			if ((loopCount1 >0x0080) && (!(Programmstatus & (1<<MANUELL))))
-			{
+      {
+         
+         //LOOPLED_PORT ^= (1<<LOOPLED_PIN);
+         loopCount1++;
+         
+         if ((loopCount1 >0x0080) && (!(Programmstatus & (1<<MANUELL))))
+         {
             
-				{
-               
-               
-               if (MULTIPLEX)
-               {
-                  // Werte reset
-                  captured_value=0;
-                  captured = 0;
-                  // Kanal waehlen
-                  adckanal = COMP_ADC_PIN_A;
-                  ADMUX = COMP_ADC_PIN_A; // 4
-                  // counter reset
-                  TCNT1 = 0;
-                  // Pin HI
-                  COMP_PORT |= (1<<COMP_DRIVE_PIN_A);
-                  while (!captured); // warten, captured wird in ISR gesetzt
-                  
-                  _delay_us(100);
-                  
-                  captured_value=0;
-                  captured = 0;
-                  adckanal = COMP_ADC_PIN_B;
-                  
-                  ADMUX = COMP_ADC_PIN_B; // 5
-                  TCNT1 = 0;
-                  COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
-                  while (!captured);
-               }
-               //lcd_gotoxy(0,0);
-               //lcd_putint(overflow);
-//               captured_value=0;
-               
-               lcd_gotoxy(0,0);
-               lcd_puts("chA:");
-               lcd_putint16(floatmittel(mittelwertA));
-
-               lcd_gotoxy(0,1);
-               lcd_puts("chB:");
-               lcd_putint16(floatmittel(mittelwertB));
-
-               lcd_gotoxy(16,0);
-               lcd_putint(captcounter);
-
+            if (MULTIPLEX)
+            {
+               // Werte reset
+               captured_value=0;
                captured = 0;
+               // Kanal waehlen
+               adckanal = COMP_ADC_PIN_A;
+               ADMUX = COMP_ADC_PIN_A & 0x07; // 4
+               // counter reset
+               TCNT1 = 0;
+               // Pin HI
+               COMP_PORT |= (1<<COMP_DRIVE_PIN_A);
+               while (!captured); // warten, captured wird in ISR gesetzt
                
-					LOOPLED_PORT ^= (1<<LOOPLED_PIN);
-					loopCount1=0;
-				}
-
-			}
-			
-			loopCount0 =0;
-		}
+               _delay_us(100);
+               
+               captured_value=0;
+               captured = 0;
+               adckanal = COMP_ADC_PIN_B;
+               
+               ADMUX = COMP_ADC_PIN_B & 0x07; // 5
+               TCNT1 = 0;
+               COMP_PORT |= (1<<COMP_DRIVE_PIN_B);
+               while (!captured);
+            }
+            //lcd_gotoxy(0,0);
+            //lcd_putint(overflow);
+            //               captured_value=0;
+            
+            lcd_gotoxy(0,0);
+            lcd_puts("chA:");
+            lcd_putint16(floatmittel((void*)mittelwertA));
+            
+            lcd_gotoxy(0,1);
+            lcd_puts("chB:");
+            lcd_putint16(floatmittel((void*)mittelwertB));
+            
+           // lcd_gotoxy(16,0);
+           // lcd_putint(captcounter);
+            
+            captured = 0;
+            
+            LOOPLED_PORT ^= (1<<LOOPLED_PIN);
+            loopCount1=0;
+            
+            
+         }
+         
+         loopCount0 =0;
+      }
 		
       
       
