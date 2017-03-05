@@ -191,6 +191,8 @@ void slaveinit(void)
  	LCD_DDR |= (1<<LCD_ENABLE_PIN);	//Pin 6 von PORT B als Ausgang fuer LCD
 	LCD_DDR |= (1<<LCD_CLOCK_PIN);	//Pin 7 von PORT B als Ausgang fuer LCD
    LOOPLED_DDR |= (1<<LOOPLED_PIN);
+   DDRB |= (1<<0); // HI fuer Spannungsteiler
+   PORTB |= (1<<0);
 }
 
 uint16_t floatmittel(uint16_t* werte)
