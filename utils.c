@@ -21,6 +21,21 @@ Extended measurements for DS18(S)20 contributed by Carsten Foss (CFO)
 #include "utils.h"
 #include <string.h>
 
+/*
+ Copyright stuff
+ 
+ Use of this program, for any purpose, is granted the author,
+ Ian Kaplan, as long as this copyright notice is included in
+ the source code or any source code derived from this program.
+ The user assumes all responsibility for using this code.
+ 
+ Ian Kaplan, October 1996
+ 
+ */
+
+
+
+
 uint8_t Tastenwahl(uint8_t Tastaturwert)
 {
    //lcd_gotoxy(0,1);
