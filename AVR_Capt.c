@@ -282,6 +282,7 @@ int main (void)
    lcd_gotoxy(0,0);
    lcd_puts("     ");
    
+   
    // timer 1 einrichten
    timer1_comp();
    sei();

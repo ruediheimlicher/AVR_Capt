@@ -205,7 +205,8 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 AVRDUDE_PROGRAMMER = avrusb500
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
-AVRDUDE_PORT = /dev/tty.usbserial-A3001g4o    # programmer connected to serial device
+#AVRDUDE_PORT = /dev/tty.usbserial-A3001g4o    # programmer connected to serial device
+AVRDUDE_PORT = /dev/tty.usbserial-A801JIUR
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
